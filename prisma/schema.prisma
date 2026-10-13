@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Asset {
+  id          String   @id @default(cuid())
+  kind        String
+  name        String
+  mime        String
+  storageKey  String   @unique
+  size        Int
+  duration    Float?
+  createdAt   DateTime @default(now())
+  references  GenerationAsset[]
+}
+
+model Generation {
+  id             String   @id @default(cuid())
+  idempotencyKey String   @unique
+  status         String   @default("WAITING")
+  prompt         String
+  finalPrompt    String
+  mode           String
+  consistency    Boolean
+  duration       Int
+  resolution     String
+  aspectRatio    String
+  generateAudio  Boolean
+  enableThinking Boolean
+  seed           Int?
+  estimatedUsd   Float
+  resultKey      String?
+  errorMessage   String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  references     GenerationAsset[]
+  @@index([createdAt])
+  @@index([status])
+}
+
+model GenerationAsset {
+  generationId String
+  assetId      String
+  position     Int
+  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  asset        Asset      @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  @@id([generationId, assetId])
+}
