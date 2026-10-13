@@ -23,7 +23,7 @@ function localPath(key: string) {
 
 export async function putObject(key: string, bytes: Buffer, mime: string) {
   if (driver() === 's3') {
-    await client().send(new PutObjectCommand({ Bucket: bucket(), Key: key, Body: bytes, ContentType: mime, ServerSideEncryption: 'AES256' }));
+    await client().send(new PutObjectCommand({ Bucket: bucket(), Key: key, Body: bytes, ContentType: mime }));
     return;
   }
   const target = localPath(key);
