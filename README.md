@@ -55,7 +55,7 @@ APP_ORIGIN=https://seu-dominio.com
 
 Crie um bucket **privado** e uma chave R2 com leitura, escrita e exclusão apenas nele. O backend faz upload para o bucket, e o worker assina URLs de leitura somente quando inicia o job. Cada URL dura sete dias, cobrindo a fila e o processamento. O resultado é copiado para o bucket e servido por uma rota autenticada.
 
-O valor isolado fornecido na conversa tem formato de identificador; ele **não** atende ao formato `KEY_ID:KEY_SECRET` exigido pelo SDK oficial. Configure o par completo diretamente no ambiente privado. Não o envie ao frontend nem faça commit do `.env`. A chamada real não foi testada com créditos.
+Confira a conexão R2 com `npm run storage:check`. O comando grava, lê e remove um arquivo pequeno no bucket, sem chamar a Higgsfield. Configure a credencial Higgsfield completa diretamente no ambiente privado. Não a envie ao frontend nem faça commit do `.env`. A chamada real ao modelo ainda exige validação com créditos.
 
 Para deploy em um único servidor/VM com volume persistente:
 
