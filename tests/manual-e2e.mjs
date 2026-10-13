@@ -38,7 +38,7 @@ try {
   assert.ok(cookie, 'Cookie ausente');
   const video = await upload(videoPath, 'video/mp4');
   const image = await upload(imagePath, 'image/png');
-  const payload = { idempotencyKey: crypto.randomUUID(), prompt: 'Personagem em movimento', finalPrompt: 'Use o vídeo 1 e a imagem 1 para compor a cena', mode: 'motion', consistency: true, duration: 2, resolution: '480p', aspectRatio: 'adaptive', generateAudio: false, enableThinking: false, seed: null, videoIds: [video.id], imageIds: [image.id], confirmedEstimatedUsd: 0.1 };
+  const payload = { idempotencyKey: crypto.randomUUID(), prompt: 'Use o vídeo 1 e a imagem 1 para compor a cena', duration: 2, resolution: '480p', aspectRatio: 'adaptive', generateAudio: false, enableThinking: false, seed: null, videoIds: [video.id], imageIds: [image.id], confirmedEstimatedUsd: 0.1 };
   const submit = await call('/api/generations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
   const submitted = await submit.json();
   assert.equal(submit.status, 201, JSON.stringify(submitted));

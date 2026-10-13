@@ -7,7 +7,7 @@ Estúdio privado em português brasileiro para criar vídeos com **Alibaba Wan 3
 - Login privado com cookie assinado e senha definida no servidor.
 - Upload direto do computador, prévia, remoção e reordenação de até 5 vídeos e 10 imagens.
 - Validação no servidor de assinatura do arquivo, extensão, MIME, tamanho e duração. Por segurança, esta versão aceita **MP4, JPG e PNG**. Cada vídeo: 1–30 s; soma dos vídeos: até 30 s.
-- Três modos de orientação por template, prompt final visível e editável, seed opcional, duração, resolução, proporção, áudio e Deep Thinking.
+- Prompt único enviado sem instruções automáticas, seed opcional, duração, resolução, proporção, áudio e Deep Thinking.
 - Estimativa de custo e confirmação antes da geração. Em modo simulado não há cobrança.
 - Fila persistente em SQLite com worker separado. O navegador consulta os estados reais `WAITING`, `SENDING`, `PROCESSING`, `COMPLETED` e `FAILED`.
 - Resultado MP4 copiado para armazenamento próprio, reprodução, download, histórico, detalhes, reutilização e exclusão.
@@ -88,7 +88,7 @@ higgsfield.subscribe('alibaba/wan-3.0/reference-to-video', {
 });
 ```
 
-As três opções de movimento/cenário/personagem são apenas instruções adicionadas ao prompt. O modelo não garante fidelidade exata de movimentos.
+Descreva no próprio prompt como usar cada referência, inclusive movimentos, personagem e cenário. O modelo não garante fidelidade exata de movimentos.
 
 O SDK TypeScript v2 oferece `subscribe` com polling; não fornece eventos detalhados de progresso desse job. Por isso a UI mostra estados persistidos, sem porcentagem fictícia. Se o worker for interrompido após uma submissão, o job é marcado como falho na reinicialização e **não** é cobrado novamente automaticamente. Confira o painel Higgsfield antes de repetir uma geração que possa ter sido aceita pelo provedor.
 

@@ -33,8 +33,8 @@ export async function POST(request: NextRequest) {
     if (process.env.GENERATION_PROVIDER !== 'mock' && !/^[^:]+:[^:]+$/.test(process.env.HF_CREDENTIALS || '')) return NextResponse.json({ error: 'Configure HF_CREDENTIALS no servidor antes de gerar vídeos reais.' }, { status: 503 });
     const generation = await db.generation.create({
       data: {
-        idempotencyKey: input.idempotencyKey, prompt: input.prompt, finalPrompt: input.finalPrompt,
-        mode: input.mode, consistency: input.consistency, duration: input.duration, resolution: input.resolution,
+        idempotencyKey: input.idempotencyKey, prompt: input.prompt, finalPrompt: input.prompt,
+        mode: 'custom', consistency: false, duration: input.duration, resolution: input.resolution,
         aspectRatio: input.aspectRatio, generateAudio: input.generateAudio, enableThinking: input.enableThinking,
         seed: input.seed, estimatedUsd: cost,
         references: { create: ids.map((assetId, position) => ({ assetId, position })) },

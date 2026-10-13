@@ -6,7 +6,7 @@ vi.mock('@/lib/db', () => ({ db: { generation: { findUnique: state.findUnique, c
 vi.mock('@/lib/http', () => ({ unauthorized: () => null, checkOrigin: () => null, safeError: (e: Error) => e.message }));
 import { POST } from '../app/api/generations/route';
 
-const input = { idempotencyKey: 'dd522158-7e94-45c0-b146-196fe111c37a', prompt: 'Uma cena', finalPrompt: 'Imagem 1 no Vídeo 1', mode: 'motion', consistency: true, duration: 5, resolution: '720p', aspectRatio: 'adaptive', generateAudio: true, enableThinking: false, seed: null, videoIds: ['v1'], imageIds: ['i1'], confirmedEstimatedUsd: 0.5 };
+const input = { idempotencyKey: 'dd522158-7e94-45c0-b146-196fe111c37a', prompt: 'Preserve o movimento do vídeo e transforme o cenário conforme a imagem', duration: 5, resolution: '720p', aspectRatio: 'adaptive', generateAudio: true, enableThinking: false, seed: null, videoIds: ['v1'], imageIds: ['i1'], confirmedEstimatedUsd: 0.5 };
 function request(body: unknown) { return new NextRequest('http://localhost:3000/api/generations', { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json' } }); }
 
 describe('submissão de geração', () => {
@@ -22,7 +22,19 @@ describe('submissão de geração', () => {
     expect(state.create).toHaveBeenCalledTimes(1);
     const created = state.create.mock.calls[0][0].data;
     expect(created.references.create).toEqual([{ assetId: 'v1', position: 0 }, { assetId: 'i1', position: 1 }]);
+    expect(created.finalPrompt).toBe(input.prompt);
+    expect(created.mode).toBe('custom');
+    expect(created.consistency).toBe(false);
     expect((await response.json()).generation.references).toHaveLength(2);
+  });
+  it('não acrescenta instruções de modo ao prompt enviado', async () => {
+    const response = await POST(request({ ...input, finalPrompt: 'Priorize apenas o movimento', mode: 'motion', consistency: true }));
+    expect(response.status).toBe(201);
+    const created = state.create.mock.calls[0][0].data;
+    expect(created.prompt).toBe(input.prompt);
+    expect(created.finalPrompt).toBe(input.prompt);
+    expect(created.mode).toBe('custom');
+    expect(created.consistency).toBe(false);
   });
   it('bloqueia custo não confirmado', async () => {
     const response = await POST(request({ ...input, confirmedEstimatedUsd: 0 }));

@@ -5,9 +5,6 @@ export const COST_PER_SECOND = { '480p': 0.05, '720p': 0.10, '1080p': 0.20 } as 
 export const generationInput = z.object({
   idempotencyKey: z.uuid(),
   prompt: z.string().trim().min(1).max(12000),
-  finalPrompt: z.string().trim().min(1).max(16000),
-  mode: z.enum(['motion', 'scene', 'character']),
-  consistency: z.boolean(),
   duration: z.number().int().min(2).max(30),
   resolution: z.enum(['480p', '720p', '1080p']),
   aspectRatio: z.enum(['16:9', '4:3', '1:1', '3:4', '9:16', 'adaptive']),
@@ -19,16 +16,6 @@ export const generationInput = z.object({
   confirmedEstimatedUsd: z.number().nonnegative(),
 });
 export type GenerationInput = z.infer<typeof generationInput>;
-
-export const modeInstructions = {
-  motion: 'Use os vídeos de referência como guia para movimentos, gestos, poses, sequência, ritmo e enquadramento. Preserve esses elementos tanto quanto possível.',
-  scene: 'Transforme principalmente o ambiente e cenário. Preserve tanto quanto possível o personagem, os movimentos e a composição dos vídeos de referência.',
-  character: 'Use as imagens de referência como guia visual da aparência do personagem. Preserve tanto quanto possível os movimentos e ações dos vídeos de referência.',
-} as const;
-
-export function composePrompt(prompt: string, mode: keyof typeof modeInstructions, consistency: boolean) {
-  return [prompt.trim(), modeInstructions[mode], consistency ? 'Mantenha a identidade visual, iluminação e detalhes dos elementos de referência consistentes ao longo do vídeo.' : ''].filter(Boolean).join('\n\n');
-}
 
 export function estimatedCost(duration: number, resolution: keyof typeof COST_PER_SECOND) {
   return Math.round(duration * COST_PER_SECOND[resolution] * 100) / 100;
