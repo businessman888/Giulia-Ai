@@ -1,4 +1,4 @@
-# Wan Studio
+# Giulia AI
 
 Estúdio privado em português brasileiro para criar vídeos com **Alibaba Wan 3.0 Reference-to-Video** pela API da Higgsfield. Vídeos de movimento, imagens de aparência e prompt seguem juntos na mesma chamada ao modelo.
 

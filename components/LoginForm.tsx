@@ -18,7 +18,7 @@ export default function LoginForm() {
   }
   return <main className="login-wrap"><div className="login-glow" /><form className="login-card" onSubmit={submit}>
     <div className="brand-icon large"><Clapperboard size={28} /></div>
-    <div className="eyebrow">ACESSO PRIVADO</div><h1>Bem-vindo ao<br /><span>Wan Studio.</span></h1>
+    <div className="eyebrow">ACESSO PRIVADO</div><h1>Bem-vindo ao<br /><span>Giulia AI.</span></h1>
     <p>Entre para criar vídeos com referências de movimento, personagem e cenário em um só fluxo.</p>
     <label className="field-label" htmlFor="password">Senha do estúdio</label>
     <div className="login-input"><LockKeyhole size={18} /><input id="password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Digite sua senha" required /></div>
