@@ -9,7 +9,7 @@ Estúdio privado em português brasileiro para criar vídeos com **Alibaba Wan 3
 - Validação no servidor de assinatura do arquivo, extensão, MIME, tamanho e duração. Por segurança, esta versão aceita **MP4, JPG e PNG**. Cada vídeo: 1–30 s; soma dos vídeos: até 30 s.
 - Prompt único enviado sem instruções automáticas, seed opcional, duração, resolução, proporção, áudio e Deep Thinking.
 - Estimativa de custo e confirmação antes da geração. Em modo simulado não há cobrança.
-- Fila persistente em SQLite com worker separado. O navegador consulta os estados reais `WAITING`, `SENDING`, `PROCESSING`, `COMPLETED` e `FAILED`.
+- Fila persistente em SQLite com worker separado. O navegador consulta os estados reais `WAITING`, `SENDING`, `PROCESSING`, `COMPLETED`, `FAILED` e `CANCELLED`.
 - Resultado MP4 copiado para armazenamento próprio, reprodução, download, histórico, detalhes, reutilização e exclusão.
 - Armazenamento local no modo simulado e bucket privado S3/R2 para produção.
 
@@ -84,13 +84,13 @@ higgsfield.subscribe('alibaba/wan-3.0/reference-to-video', {
     enable_thinking: enableThinking,
     // seed quando preenchida
   },
-  withPolling: true,
+  withPolling: false,
 });
 ```
 
 Descreva no próprio prompt como usar cada referência, inclusive movimentos, personagem e cenário. O modelo não garante fidelidade exata de movimentos.
 
-O SDK TypeScript v2 oferece `subscribe` com polling; não fornece eventos detalhados de progresso desse job. Por isso a UI mostra estados persistidos, sem porcentagem fictícia. Se o worker for interrompido após uma submissão, o job é marcado como falho na reinicialização e **não** é cobrado novamente automaticamente. Confira o painel Higgsfield antes de repetir uma geração que possa ter sido aceita pelo provedor.
+O SDK TypeScript v2 submete o pedido sem aguardar o vídeo; o worker salva o `request_id` e consulta o `status_url` oficial até o estado final. Isso evita o limite padrão de cinco minutos do polling embutido no SDK. Se o worker reiniciar depois de receber o identificador, continua consultando o mesmo pedido sem fazer outra submissão. Um envio interrompido antes de salvar o identificador permanece ambíguo e não é reenviado automaticamente. Confira o painel Higgsfield antes de repetir uma geração nessa situação. A interface não mostra porcentagens fictícias.
 
 ## Testes
 

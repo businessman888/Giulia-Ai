@@ -9,7 +9,7 @@ import path from 'node:path';
 import ffmpeg from 'ffmpeg-static';
 import { db } from '../lib/db';
 import { providerUrl, putObject, deleteObject } from '../lib/storage';
-import { generateWithWan } from '../lib/provider';
+import { getWanStatus, submitWan, WanError, WanPollRetryableError } from '../lib/provider';
 
 const mock = process.env.GENERATION_PROVIDER === 'mock';
 let stopping = false;
@@ -74,9 +74,31 @@ async function fetchVideo(url: string) {
   return bytes;
 }
 
+async function waitForWanVideo(statusUrl: string, requestId: string, credentials: string) {
+  let delay = 2000;
+  while (true) {
+    try {
+      const result = await getWanStatus(statusUrl, requestId, credentials);
+      if (result.status === 'completed') {
+        if (!result.video?.url) throw new WanError('A Higgsfield concluiu a solicitação sem retornar um vídeo.');
+        return { url: result.video.url, canceled: false };
+      }
+      if (result.status === 'failed') throw new WanError('A Higgsfield informou falha no processamento da solicitação.');
+      if (result.status === 'nsfw') throw new WanError('A solicitação foi recusada pela moderação da Higgsfield.');
+      if (result.status === 'canceled') return { url: null, canceled: true };
+    } catch (error) {
+      if (!(error instanceof WanPollRetryableError)) throw error;
+    }
+    await new Promise(resolve => setTimeout(resolve, delay));
+    delay = Math.min(Math.round(delay * 1.5), 10000);
+  }
+}
+
 async function processOne(id: string) {
   const generation = await db.generation.findUnique({ where: { id }, include: { references: { include: { asset: true }, orderBy: { position: 'asc' } } } });
   if (!generation) return;
+  let requestId = generation.providerRequestId;
+  let stage = 'preparing';
   try {
     let bytes: Buffer;
     if (mock) {
@@ -86,12 +108,28 @@ async function processOne(id: string) {
     } else {
       const credentials = process.env.HF_CREDENTIALS;
       if (!credentials || !/^[^:]+:[^:]+$/.test(credentials)) throw new Error('HF_CREDENTIALS ausente ou inválida');
-      const imageUrls = await Promise.all(generation.references.filter(r => r.asset.kind === 'image').map(r => providerUrl(r.asset.storageKey)));
-      const videoUrls = await Promise.all(generation.references.filter(r => r.asset.kind === 'video').map(r => providerUrl(r.asset.storageKey)));
+      let statusUrl = generation.providerStatusUrl;
+      if (requestId && !statusUrl) throw new WanError('Falta o endereço para acompanhar esta solicitação.');
+      if (!requestId) {
+        const imageUrls = await Promise.all(generation.references.filter(r => r.asset.kind === 'image').map(r => providerUrl(r.asset.storageKey)));
+        const videoUrls = await Promise.all(generation.references.filter(r => r.asset.kind === 'video').map(r => providerUrl(r.asset.storageKey)));
+        stage = 'submitting';
+        const receipt = await submitWan({ finalPrompt: generation.finalPrompt, imageUrls, videoUrls, duration: generation.duration, resolution: generation.resolution, aspectRatio: generation.aspectRatio, generateAudio: generation.generateAudio, enableThinking: generation.enableThinking, seed: generation.seed }, credentials, generation.idempotencyKey);
+        requestId = receipt.requestId;
+        statusUrl = receipt.statusUrl;
+        await db.generation.update({ where: { id }, data: { providerRequestId: requestId, providerStatusUrl: statusUrl } });
+      }
       await db.generation.update({ where: { id }, data: { status: 'PROCESSING' } });
-      const url = await generateWithWan({ finalPrompt: generation.finalPrompt, imageUrls, videoUrls, duration: generation.duration, resolution: generation.resolution, aspectRatio: generation.aspectRatio, generateAudio: generation.generateAudio, enableThinking: generation.enableThinking, seed: generation.seed }, credentials);
-      bytes = await fetchVideo(url);
+      stage = 'polling';
+      const result = await waitForWanVideo(statusUrl!, requestId!, credentials);
+      if (result.canceled) {
+        await db.generation.update({ where: { id }, data: { status: 'CANCELLED', completedAt: new Date() } });
+        return;
+      }
+      stage = 'downloading';
+      bytes = await fetchVideo(result.url!);
     }
+    stage = 'saving';
     const key = `results/${randomUUID()}.mp4`;
     await putObject(key, bytes, 'video/mp4');
     try {
@@ -100,8 +138,13 @@ async function processOne(id: string) {
       await deleteObject(key);
       throw error;
     }
-  } catch {
-    await db.generation.update({ where: { id }, data: { status: 'FAILED', errorMessage: 'A geração não pôde ser concluída. Verifique a conta/API e tente uma nova solicitação manualmente.', completedAt: new Date() } });
+  } catch (error) {
+    const message = error instanceof WanError ? error.message
+      : stage === 'preparing' ? 'Não foi possível preparar as referências para a Higgsfield.'
+      : stage === 'submitting' ? 'Não foi possível confirmar o envio à Higgsfield. Confira o painel da conta antes de tentar novamente.'
+      : stage === 'downloading' || stage === 'saving' ? 'O vídeo foi gerado, mas não pôde ser salvo no estúdio.'
+      : 'Não foi possível acompanhar a solicitação na Higgsfield.';
+    await db.generation.update({ where: { id }, data: { status: 'FAILED', errorMessage: `${message}${requestId ? ` ID Higgsfield: ${requestId}.` : ''}`, completedAt: new Date() } });
   }
 }
 
@@ -114,16 +157,19 @@ async function cleanup() {
 }
 
 async function main() {
-  // Nunca reenvie automaticamente uma chamada paga cujo resultado ficou incerto após reinício.
-  await db.generation.updateMany({ where: { status: { in: ['SENDING', 'PROCESSING'] } }, data: { status: 'FAILED', errorMessage: 'Worker interrompido. Verifique a solicitação na Higgsfield antes de tentar novamente.', completedAt: new Date() } });
+  // Envios sem recibo são ambíguos; os que possuem ID são apenas consultados, nunca reenviados.
+  await db.generation.updateMany({ where: { status: { in: ['SENDING', 'PROCESSING'] }, providerRequestId: null }, data: { status: 'FAILED', errorMessage: 'Envio interrompido sem identificador. Verifique a solicitação na Higgsfield antes de tentar novamente.', completedAt: new Date() } });
   let lastCleanup = 0;
   while (!stopping) {
     if (Date.now() - lastCleanup > 3600000) { await cleanup(); lastCleanup = Date.now(); }
-    const next = await db.generation.findFirst({ where: { status: 'WAITING' }, orderBy: { createdAt: 'asc' } });
-    if (next) {
+    const pending = await db.generation.findFirst({ where: { status: { in: ['SENDING', 'PROCESSING'] }, providerRequestId: { not: null } }, orderBy: { createdAt: 'asc' } });
+    if (pending) await processOne(pending.id);
+    else {
+      const next = await db.generation.findFirst({ where: { status: 'WAITING' }, orderBy: { createdAt: 'asc' } });
+      if (!next) { await new Promise(resolve => setTimeout(resolve, 2000)); continue; }
       const claimed = await db.generation.updateMany({ where: { id: next.id, status: 'WAITING' }, data: { status: 'SENDING', startedAt: new Date() } });
       if (claimed.count) await processOne(next.id);
-    } else await new Promise(resolve => setTimeout(resolve, 2000));
+    }
   }
 }
 

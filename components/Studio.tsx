@@ -5,7 +5,7 @@ import { ArrowDownToLine, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRi
 import { estimatedCost, type GenerationInput } from '@/lib/generation';
 
 type Asset = { id: string; kind: 'image' | 'video'; name: string; duration: number | null; url: string };
-type Generation = Omit<GenerationInput, 'idempotencyKey' | 'videoIds' | 'imageIds' | 'confirmedEstimatedUsd'> & { id: string; finalPrompt: string; status: string; estimatedUsd: number; errorMessage: string | null; createdAt: string; completedAt: string | null; resultUrl: string | null; references: Asset[] };
+type Generation = Omit<GenerationInput, 'idempotencyKey' | 'videoIds' | 'imageIds' | 'confirmedEstimatedUsd'> & { id: string; finalPrompt: string; providerRequestId: string | null; status: string; estimatedUsd: number; errorMessage: string | null; createdAt: string; completedAt: string | null; resultUrl: string | null; references: Asset[] };
 const statusText: Record<string, string> = { WAITING: 'Aguardando', SENDING: 'Enviando', PROCESSING: 'Processando', COMPLETED: 'Concluído', FAILED: 'Falhou', CANCELLED: 'Cancelado' };
 
 export default function Studio({ mock }: { mock: boolean }) {

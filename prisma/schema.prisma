@@ -35,6 +35,8 @@ model Generation {
   seed           Int?
   estimatedUsd   Float
   resultKey      String?
+  providerRequestId String? @unique
+  providerStatusUrl String?
   errorMessage   String?
   startedAt      DateTime?
   completedAt    DateTime?
